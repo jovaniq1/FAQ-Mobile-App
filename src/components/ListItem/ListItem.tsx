@@ -13,11 +13,12 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import React, { useEffect, useState } from 'react';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 
 import type { productsProps } from '../../constants/constants';
 import theme, { normalize } from '../../theme/theme';
 import { PressableScale } from '../Toast/components/pressable-scale';
+import List from '../Accordion/List';
 
 // Constants for list item height, margin, and additional measurements
 const ListItemHeight = 80;
@@ -39,6 +40,7 @@ type ListItemProps = {
   loading: boolean;
   scrollOffset: SharedValue<number>;
   onCardPress: (item: productsProps, index: number) => void;
+  isAccordion?: boolean;
 };
 
 // Functional component representing each item in the list
@@ -48,9 +50,13 @@ const ListItem: React.FC<ListItemProps> = ({
   loading = false,
   scrollOffset,
   onCardPress,
+  isAccordion = false,
 }) => {
   // Calculate base translateY for the item
   const baseTranslateY = index * FullListItemHeight;
+  const [open, setOpen] = useState(false);
+  const [textHeight, setTextHeight] = useState(0);
+  const [textHeightAnswer, setTextHeightAnswer] = useState(0);
 
   // Calculate item width and spacing
   const itemWidth = ScreenWidth * 0.95;
@@ -98,20 +104,40 @@ const ListItem: React.FC<ListItemProps> = ({
     );
   }, [baseTranslateY]);
 
+  const transition = useSharedValue(0);
+  // Define default heights or fallback safely
+  const questionHeight = isAccordion
+    ? Math.max(textHeight + 45 || 1, 90) // Min value for visual consistency
+    : ListItemHeight || 1;
+
+  const answerHeight =
+    questionHeight + Math.max(textHeightAnswer + 60 || 1, 40); // Add min for proper space
+
+  const height = useDerivedValue(() => {
+    return interpolate(
+      transition.value,
+      [0, 1],
+      [questionHeight, answerHeight],
+    );
+  });
+
   // Animated style for the item
   const rContainerStyle = useAnimatedStyle(() => {
     return {
+      height: height.value,
+
+      flexGrow: 1,
+
+      // zIndex: 2000 - index,
       opacity: interpolate(
         visibleAmount.value,
+
         [0, FullListItemHeight / 3, FullListItemHeight],
         // The opacity will be 0.7 when the item is fully visible
         [0.3, 0.4, 0.7],
         Extrapolation.EXTEND,
       ),
       transform: [
-        {
-          translateY: realTranslateY.value,
-        },
         {
           scale: scale.value,
         },
@@ -134,6 +160,14 @@ const ListItem: React.FC<ListItemProps> = ({
         -1, // Repeat indefinitely
         true, // Reverse the animation
       );
+      // collapses if expanded when loading
+      if (isAccordion) {
+        setOpen(false);
+        transition.value = withTiming(0, {
+          duration: 400,
+          easing: Easing.inOut(Easing.ease),
+        });
+      }
     } else {
       skeleton.value = withTiming(0, {
         duration: 1000,
@@ -183,6 +217,14 @@ const ListItem: React.FC<ListItemProps> = ({
     return { opacity };
   });
 
+  const toggleList = () => {
+    transition.value = withTiming(open ? 0 : 1, {
+      duration: 400,
+      easing: Easing.inOut(Easing.ease),
+    });
+    setOpen(prev => !prev);
+  };
+
   if (loading || isLoading) {
     return (
       <Animated.View
@@ -221,70 +263,90 @@ const ListItem: React.FC<ListItemProps> = ({
 
   // Render actual content
   return (
-    <Animated.View
-      style={[
-        { width: itemWidth, left: itemSpacing, zIndex: -index },
-        styles.container,
+    <PressableScale
+      onPress={() => {
+        if (!isAccordion) {
+          onCardPress(item, index);
+        } else {
+          toggleList();
+        }
+      }}>
+      {/* used to calculate the height of the text */}
+      {isAccordion && (
+        <>
+          <View style={{ position: 'absolute', zIndex: -1000, opacity: 0 }}>
+            <Text
+              onLayout={event => {
+                const { height } = event.nativeEvent.layout;
+                setTextHeight(height);
+              }}
+              style={styles.title}>{`${item?.question}`}</Text>
+          </View>
+          <View style={{ position: 'absolute', zIndex: -1000, opacity: 0 }}>
+            <Text
+              onLayout={event => {
+                const { height } = event.nativeEvent.layout;
+                setTextHeightAnswer(height);
+              }}
+              style={styles.title}>{`${item?.answer}`}</Text>
+          </View>
+        </>
+      )}
 
-        rContainerStyle,
-        rSkeletonTextStyle,
-      ]}>
-      {/* <View
-        key={index.toString()}
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          height: normalize(60),
-          marginHorizontal: normalize(20),
-          marginTop: normalize(10),
-          backgroundColor: theme.WHITE,
-          padding: normalize(10),
-          // borderWidth: 1,
-          borderRadius: normalize(10),
-          borderColor: 'gray',
-          shadowColor: theme.BLACK,
-          shadowOffset: {
-            width: 0,
-            height: 2,
-          },
-          shadowOpacity: 0.25,
-          shadowRadius: 3.84,
-          elevation: 5,
-        }}> */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-        }}>
-        <MaterialCommunityIcons
-          name="account"
-          size={24}
-          color="black"
-          style={{ marginRight: normalize(10) }}
-        />
-        <Text
-          style={{
-            fontSize: normalize(14),
-            fontWeight: 'bold',
-            width: theme.WIDTH * 0.6,
-          }}>
-          {item?.category}
-        </Text>
-      </View>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-        }}>
-        <MaterialCommunityIcons
-          name="arrow-right"
-          size={24}
-          color="black"
-          style={{ marginRight: normalize(10) }}
-        />
-      </View>
-      {/* </View> */}
-    </Animated.View>
+      <Animated.View
+        style={[
+          { width: itemWidth, left: itemSpacing },
+          styles.container,
+
+          rContainerStyle,
+          rSkeletonTextStyle,
+        ]}>
+        {isAccordion ? (
+          <View>
+            <List
+              question={item}
+              transition={transition}
+              setTextHeight={setTextHeight}
+            />
+          </View>
+        ) : (
+          <>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}>
+              <MaterialIcons
+                name="library-books"
+                size={24}
+                color="black"
+                style={{ marginRight: normalize(10) }}
+              />
+              <Text
+                style={{
+                  fontSize: normalize(14),
+                  fontWeight: 'bold',
+                  width: theme.WIDTH * 0.6,
+                }}>
+                {item?.category}
+              </Text>
+            </View>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}>
+              <MaterialCommunityIcons
+                name="arrow-right"
+                size={24}
+                color="black"
+                style={{ marginRight: normalize(10) }}
+              />
+            </View>
+          </>
+        )}
+      </Animated.View>
+    </PressableScale>
   );
 };
 
@@ -292,10 +354,8 @@ export { ListItem };
 
 const styles = StyleSheet.create({
   container: {
-    height: ListItemHeight,
     backgroundColor: theme.WHITE,
-    position: 'absolute',
-    // top: 0,
+
     borderRadius: normalize(15),
 
     shadowColor: theme.BLACK,
@@ -313,7 +373,18 @@ const styles = StyleSheet.create({
     padding: normalize(10),
     borderColor: 'gray',
   },
+  title: {
+    // height: (LIST_ITEM_HEIGHT * 2) / 1.2,
+    fontSize: normalize(14),
+    width: theme.WIDTH * 0.8,
+    flexGrow: 1,
+    color: theme.WHITE,
+    zIndex: -1000,
+    opacity: 0,
 
+    fontWeight: 'bold',
+    // width: theme.WIDTH * 0.8,
+  },
   placeholder: {
     width: normalize(200),
     height: normalize(20),

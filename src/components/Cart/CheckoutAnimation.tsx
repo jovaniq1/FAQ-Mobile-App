@@ -25,14 +25,11 @@ const AnimatedButton = () => {
   }, []);
 
   const animatedStyles = useAnimatedStyle(() => {
-    const borderRadius = progress.value * 50 + 10; // Smoothly transition from 10 to 50
+    const borderRadius = progress.value * 120 + 10; // Smoothly transition from 10 to 50
     const backgroundColor = interpolateColor(
       progress.value,
       [0, 1],
-      [
-        theme.GREEN_COLOR_CONTAINER_LIGHT_MEDIUM,
-        theme.GREEN_COLOR_CONTAINER_LIGHT,
-      ],
+      [theme.LIGHT_BLUE, theme.DARK_BLUE],
     );
 
     return {
@@ -45,11 +42,11 @@ const AnimatedButton = () => {
     };
   });
   const animatedStyles2 = useAnimatedStyle(() => {
-    const borderRadius = progress.value * 50 + 10; // Smoothly transition from 10 to 50
+    const borderRadius = progress.value * 120 + 10; // Smoothly transition from 10 to 50
     const backgroundColor = interpolateColor(
       progress.value,
       [0, 1],
-      [theme.GREEN_COLOR_CONTAINER, theme.GREEN_COLOR_CONTAINER_LIGHT_MEDIUM],
+      [theme.DARK_BLUE, theme.LIGHT_BLUE],
     );
 
     return {
@@ -71,7 +68,7 @@ const AnimatedButton = () => {
 
   return (
     <>
-      <Animated.Text style={[styles.text, rText]}>{'Success'}</Animated.Text>
+      <Animated.Text style={[styles.text, rText]}>{'Connected'}</Animated.Text>
       <Animated.View style={[styles.text, { top: normalize(180 - 80) }, rText]}>
         <MaterialCommunityIcons
           name="check"

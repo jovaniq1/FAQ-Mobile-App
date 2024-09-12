@@ -36,8 +36,14 @@ import { BouncingCircles } from './BouncingCircles';
 const CartList = ({ showToast }) => {
   const [isLoading, setIsLoading] = React.useState(false);
   const isKeyboardVisible = useKeyboardVisible();
+  const [name, setName] = React.useState('');
+  const [email, setEmail] = React.useState('');
+  const [id, setId] = React.useState('');
+  const [showError, setShowError] = React.useState(false);
   const scrollViewRef = useRef(null);
-
+  const nameInputRef = useRef(null);
+  const emailInputRef = useRef(null);
+  const idInputRef = useRef(null);
   useEffect(() => {
     if (!isKeyboardVisible && scrollViewRef.current) {
       // setIsLoading(false);
@@ -50,15 +56,21 @@ const CartList = ({ showToast }) => {
 
   // animation for opacity
   const opacity = useSharedValue(1);
-  const handleClearCart = useClearCart();
 
   const showCompletedAnimation = () => {
     // check if total cost is greater than 0
+    if (name === '' || email === '' || id === '') {
+      setShowError(true);
+      return;
+    } else {
+      setShowError(false);
+    }
 
     setIsLoading(true);
     opacity.value = withTiming(0, { duration: 1000 }, () => {
-      runOnJS(handleClearCart)();
+      // runOnJS(handleClearCart)();
     });
+    // check if all fields are filled with the refs
 
     // show cart button again
     setTimeout(() => {
@@ -107,10 +119,6 @@ const CartList = ({ showToast }) => {
       );
     });
   };
-
-  const nameInputRef = useRef(null);
-  const emailInputRef = useRef(null);
-  const idInputRef = useRef(null);
 
   return (
     <View
@@ -178,7 +186,6 @@ const CartList = ({ showToast }) => {
           <Text
             style={{
               marginTop: normalize(10),
-
               fontSize: normalize(14),
               fontWeight: 'bold',
               textAlign: 'flex-start',
@@ -187,6 +194,10 @@ const CartList = ({ showToast }) => {
             Please fill out the form below to chat with Apexus Answers.
           </Text>
         </View>
+        {showError && (
+          <Text style={styles.errorText}>Please fill out all fields</Text>
+        )}
+
         {isLoading && (
           <View
             style={{
@@ -217,6 +228,8 @@ const CartList = ({ showToast }) => {
 
           <TextInput
             ref={nameInputRef}
+            onChangeText={(text: string) => setName(text)}
+            value={name}
             style={styles.textInputStyle}
             placeholder="Type Name"
             keyboardType="default"
@@ -242,6 +255,8 @@ const CartList = ({ showToast }) => {
           <TextInput
             ref={emailInputRef}
             style={styles.textInputStyle}
+            onChangeText={(text: string) => setEmail(text)}
+            value={email}
             placeholder="Type Email"
             returnKeyType="next"
             onFocus={() => scrollToInput(emailInputRef)}
@@ -265,6 +280,8 @@ const CartList = ({ showToast }) => {
           </View>
           <TextInput
             ref={idInputRef}
+            onChangeText={(text: string) => setId(text)}
+            value={id}
             style={styles.textInputStyle}
             returnKeyType="done"
             placeholder="Type 340BID"
@@ -306,6 +323,13 @@ const styles = StyleSheet.create({
     flex: 1,
     height: theme.HEIGHT,
     paddingBottom: normalize(400),
+  },
+  errorText: {
+    fontSize: normalize(16),
+    color: theme.RED_COLOR,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginTop: normalize(15),
   },
   buttonAddToCartText: {
     color: theme.WHITE,

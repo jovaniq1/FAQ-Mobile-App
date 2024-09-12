@@ -1,4 +1,12 @@
-import { StyleSheet, View, Text, Button, StatusBar, Image } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  Text,
+  Button,
+  TextInput,
+  Image,
+  StatusBar,
+} from 'react-native';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -12,17 +20,19 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 
-import { ListItem } from './components/ListItem/ListItem';
-import type { faqProps } from './constants/constants';
-import theme, { normalize } from './theme/theme';
-import { FAQ_DATA } from './constants/constants';
-import { PressableScale } from './components/Toast/components/pressable-scale';
-import { BouncingCircles } from './components/Cart/BouncingCircles';
-import { SearchComponent } from './components/SearchComponent/SearchComponent';
-import EmptySearch from './components/FaqDetails/EmptySearch';
+import Accordion from '../Accordion';
+import { ListItem } from '../ListItem/ListItem';
+import type { faqProps } from '../../constants/constants';
+import theme, { normalize } from '../../theme/theme';
+import { FAQ_DATA } from '../../constants/constants';
+import { PressableScale } from '../Toast/components/pressable-scale';
+import { BouncingCircles } from '../Cart/BouncingCircles';
+import { SearchComponent } from '../SearchComponent/SearchComponent';
+
+import EmptySearch from './EmptySearch';
 
 // Constants for list item height, margin, and additional measurements
 const ListItemHeight = 80;
@@ -35,34 +45,34 @@ const ListHeight = FullListItemHeight * 15;
 // Constants for list margin top and a nice offset
 const ListMarginTop = 20;
 
-const NiceOffset = 300;
+const NiceOffset = 100;
 
-const refreshingHeight = 60;
+const refreshingHeight = 90;
+const loadingValue = 60;
 
 // Main application component
-const App = ({ navigation }) => {
+const FaqDetails = ({ navigation, route }) => {
+  const { item: data } = route.params;
+
   // Reference for animated flat list
   const scrollAnimatedRef = useAnimatedRef<Animated.FlatList<number>>();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showLoading, setShowLoading] = useState(false);
-  const [showMore, setShowMore] = useState(false);
+
   const [searchQuery, setSearchQuery] = useState('');
-
-  const allQuestions = FAQ_DATA.faq?.map(category => category.questions).flat();
-
-  const [filteredQuestions, setFilteredQuestions] = useState([]);
-  const [showSearchData, setShowSearchData] = useState(false);
 
   const scrollOffset = useScrollViewOffset(scrollAnimatedRef as any);
 
+  const [filteredQuestions, setFilteredQuestions] = useState(data.questions);
+  const [showSearchData, setShowSearchData] = useState(false);
   const scrollPosition = useSharedValue(0);
   const loadingOffset = useSharedValue(0);
+
   const onPullDown = () => {
     setLoading(true);
     setSearchQuery('');
-    setShowSearchData(false);
 
-    setFilteredQuestions([]);
+    setFilteredQuestions(data.questions);
   };
 
   const scrollHandler = useAnimatedScrollHandler({
@@ -77,8 +87,6 @@ const App = ({ navigation }) => {
       }
     },
   });
-
-  //
 
   // set loading to false after 2 seconds
   useEffect(() => {
@@ -95,12 +103,14 @@ const App = ({ navigation }) => {
   useEffect(() => {
     if (filteredQuestions.length > 0) {
       setShowSearchData(true);
+    } else {
+      setShowSearchData(false);
     }
   }, [filteredQuestions]);
   const searchInputRef = useRef(null);
 
   const scrollToInput = () => {
-    const scrollHeight = showMore ? 480 : 330;
+    const scrollHeight = 35;
     requestAnimationFrame(() => {
       scrollAnimatedRef.current.scrollTo({ y: scrollHeight, animated: true });
     });
@@ -108,6 +118,9 @@ const App = ({ navigation }) => {
 
   const flatListStyle = useAnimatedStyle(() => {
     return {
+      flex: 1,
+      paddingBottom: 200,
+
       transform: [{ translateY: loadingOffset.value }],
     };
   });
@@ -119,14 +132,14 @@ const App = ({ navigation }) => {
     if (-scrollPosition.value > 0 && loadingOffset.value === 0) {
       return interpolate(
         -scrollPosition.value,
-        [0, 60],
+        [0, loadingValue],
         [0, 1],
         Extrapolation.CLAMP,
       );
     } else {
       return interpolate(
         loadingOffset.value,
-        [60, 0], // Reverse the range for decreasing effect
+        [loadingValue, 0], // Reverse the range for decreasing effect
         [1, 0],
         Extrapolation.CLAMP,
       );
@@ -137,8 +150,8 @@ const App = ({ navigation }) => {
     // Compute opacity based on the negative scroll position to a minimum of 0 (not visible) and maximum of 1 (fully visible)
     const scale = interpolate(
       -scrollPosition.value,
-      [0, 60], // Assuming 100 is the point at which full opacity should be reached
-      [1.2, 1.5],
+      [0, loadingValue], // Assuming 100 is the point at which full opacity should be reached
+      [1.2, 1.4],
       Extrapolation.CLAMP,
     );
 
@@ -156,103 +169,65 @@ const App = ({ navigation }) => {
   // Render the app
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-
+      <StatusBar barStyle="light-content" />
+      <Animated.View style={[styles.refresh, animatedIndicatorStyle]}>
+        <BouncingCircles />
+      </Animated.View>
+      {/* todo make top smaller */}
       <Animated.ScrollView
         ref={scrollAnimatedRef}
         onScroll={scrollHandler}
-        data={FAQ_DATA.faq}
+        data={data?.questions}
         scrollEventThrottle={16} //60fps
         showsVerticalScrollIndicator={true}
         contentContainerStyle={{
-          marginTop: ListMarginTop,
+          marginTop: normalize(5),
           backgroundColor: theme.WHITE,
-          height: showMore
-            ? ListHeight + NiceOffset + NiceOffset
-            : ListHeight + NiceOffset,
-          marginBottom: normalize(20),
+          //   height: ListHeight + data?.questions?.length * NiceOffset,
+          //   marginBottom: normalize(200),
+          //   flex: 1,
+          //   height: '100%',
+          paddingBottom: 200,
+
+          flexGrow: 1,
         }}
         style={flatListStyle} // apply the animated style here
-        renderItem={({ item, index }) => (
-          <View
+      >
+        <View
+          style={{
+            marginHorizontal: normalize(10),
+            marginTop: normalize(20),
+          }}>
+          {/* <View
             style={{
               flexDirection: 'row',
-              justifyContent: 'space-between',
-              height: normalize(60),
-              marginHorizontal: normalize(20),
-              marginTop: normalize(10),
-              backgroundColor: theme.WHITE,
-              padding: normalize(10),
-              // borderWidth: 1,
-              borderRadius: normalize(10),
-              borderColor: 'gray',
-              shadowColor: theme.BLACK,
-              shadowOffset: {
-                width: 0,
-                height: 2,
-              },
-              shadowOpacity: 0.25,
-              shadowRadius: 3.84,
-              elevation: 5,
+              justifyContent: 'space-around',
+              alignItems: 'center',
             }}>
-            <View
+            <Image
+              source={require('../../assets/logo2.png')}
+              style={
+                {
+                  // alignSelf: 'flex-start',
+                  // resizeMode: 'fit-content',
+                  // marginBottom: normalize(10),
+                }
+              }
+            />
+            <Text
               style={{
-                flexDirection: 'row',
-                alignItems: 'center',
+                width: '50%',
+                alignSelf: 'center',
+                textAlign: 'center',
+                fontSize: normalize(18),
+                fontWeight: 'bold',
+                color: theme.DARK_BLUE,
               }}>
-              <MaterialIcons
-                name="library-books"
-                size={24}
-                color="black"
-                style={{ marginRight: normalize(10) }}
-              />
-              <Text
-                style={{
-                  fontSize: normalize(14),
-                  fontWeight: 'bold',
-                  width: theme.WIDTH * 0.6,
-                }}>
-                {item?.category}
-              </Text>
-            </View>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-              }}>
-              <MaterialCommunityIcons
-                name="arrow-right"
-                size={24}
-                color="black"
-                style={{ marginRight: normalize(10) }}
-              />
-            </View>
-          </View>
-        )}
-        keyExtractor={(_, index) => index.toString()}>
-        <Animated.View style={[styles.refresh, animatedIndicatorStyle]}>
-          <BouncingCircles />
-        </Animated.View>
-        <View
-          style={{ marginHorizontal: normalize(20), marginTop: normalize(50) }}>
-          <Image
-            source={require('./assets/logo.png')}
-            style={{
-              alignSelf: 'center',
+              {data.category}
+            </Text>
+          </View> */}
 
-              resizeMode: 'fit-content',
-              marginBottom: normalize(10),
-            }}
-          />
-          <Text
-            style={{
-              textAlign: 'left',
-              fontSize: normalize(24),
-              fontWeight: 'bold',
-            }}>
-            {FAQ_DATA.title}
-          </Text>
-          <Text
+          {/* <Text
             style={{
               marginTop: normalize(10),
               textAlign: 'left',
@@ -260,9 +235,9 @@ const App = ({ navigation }) => {
               zIndex: -1,
             }}>
             {FAQ_DATA.description}
-          </Text>
+          </Text> */}
 
-          <PressableScale
+          {/* <PressableScale
             onPress={() => setShowMore(!showMore)}
             style={{
               justifyContent: 'center',
@@ -279,9 +254,9 @@ const App = ({ navigation }) => {
               }}>
               {!showMore ? ' Show More' : 'Hide'}
             </Text>
-          </PressableScale>
+          </PressableScale> */}
 
-          {showMore && (
+          {/* {showMore && (
             <Text
               style={{
                 marginTop: normalize(10),
@@ -290,13 +265,13 @@ const App = ({ navigation }) => {
               }}>
               {FAQ_DATA.description2}
             </Text>
-          )}
+          )} */}
         </View>
         {/* search component */}
         <SearchComponent
           onFocused={() => scrollToInput()}
-          questionsData={allQuestions}
-          constantData={allQuestions}
+          questionsData={filteredQuestions}
+          constantData={data.questions}
           setSearchQuestions={setFilteredQuestions}
           setIsLoadingQuestions={setLoading}
           searchQuery={searchQuery}
@@ -311,29 +286,20 @@ const App = ({ navigation }) => {
             marginHorizontal: normalize(20),
             marginTop: normalize(20),
           }}>
-          <Text style={{ fontSize: normalize(18), fontWeight: 'bold' }}>
-            {showSearchData ? 'Questions' : 'Categories'}
+          <Text
+            style={{
+              fontSize: normalize(18),
+              fontWeight: 'bold',
+              color: theme.DARK_BLUE,
+            }}>
+            Questions
           </Text>
         </View>
         <View style={{ marginTop: normalize(0) }}>
-          {showSearchData ? (
-            filteredQuestions.length === 0 ? (
-              <EmptySearch />
-            ) : (
-              filteredQuestions.map((item: faqProps, index: number) => (
-                <ListItem
-                  key={index.toString()}
-                  item={item}
-                  index={index}
-                  loading={loading}
-                  isAccordion={true}
-                  scrollOffset={scrollOffset}
-                  onCardPress={onCardPress}
-                />
-              ))
-            )
+          {filteredQuestions?.length === 0 ? (
+            <EmptySearch />
           ) : (
-            FAQ_DATA.faq?.map((item: faqProps, index: number) => (
+            filteredQuestions?.map((item: faqProps, index: number) => (
               <ListItem
                 key={index.toString()}
                 item={item}
@@ -341,6 +307,7 @@ const App = ({ navigation }) => {
                 loading={loading}
                 scrollOffset={scrollOffset}
                 onCardPress={onCardPress}
+                isAccordion={true}
               />
             ))
           )}
@@ -358,18 +325,18 @@ const styles = StyleSheet.create({
   },
 
   refresh: {
-    height: refreshingHeight,
+    height: 90,
     alignContent: 'center',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'absolute',
-    top: 5,
+    top: 25,
     left: 0,
     right: 0,
-    zIndex: 20,
-    // paddingTop: normalize(0),
+    paddingTop: normalize(20),
+    paddingBottom: normalize(20),
   },
 });
 
 // Export the main application component
-export { App };
+export { FaqDetails };
